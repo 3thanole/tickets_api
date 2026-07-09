@@ -1,6 +1,46 @@
 @TicketManagementApi_HostAddress = http://localhost:5258
 
-GET {{TicketManagementApi_HostAddress}}/weatherforecast/
+GET {{TicketManagementApi_HostAddress}}/tickets
 Accept: application/json
+
+###
+
+POST {{TicketManagementApi_HostAddress}}/tickets
+Content-Type: application/json
+
+{
+  "title": "Cannot access my account",
+  "description": "The user cannot log in with valid credentials.",
+  "priority": "High"
+}
+
+###
+
+GET {{TicketManagementApi_HostAddress}}/tickets/1
+Accept: application/json
+
+###
+
+PUT {{TicketManagementApi_HostAddress}}/tickets/1
+Content-Type: application/json
+
+{
+  "title": "Cannot access my account (updated)",
+  "description": "The user still cannot log in with valid credentials.",
+  "priority": "Urgent"
+}
+
+###
+
+PATCH {{TicketManagementApi_HostAddress}}/tickets/1/status
+Content-Type: application/json
+
+{
+  "status": "Resolved"
+}
+
+###
+
+DELETE {{TicketManagementApi_HostAddress}}/tickets/1
 
 ###
