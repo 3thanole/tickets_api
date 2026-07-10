@@ -135,4 +135,30 @@ public class TicketsControllerTests
 
         result.ShouldBeOfType<NotFoundResult>();
     }
+
+    [Fact]
+    public void AddComment_Given_ExistingTicket_Then_ReturnsCreatedAtActionWithComment()
+    {
+        var request = new AddCommentRequest { AuthorRole = CommentAuthorRole.ITAgent, Message = "On it" };
+        var comment = new TicketCommentResponse { Id = 1, AuthorRole = CommentAuthorRole.ITAgent, Message = "On it" };
+        _ticketServiceMock.Setup(s => s.AddComment(1, request)).Returns(comment);
+
+        var result = _sut.AddComment(1, request);
+
+        var createdResult = result.Result.ShouldBeOfType<CreatedAtActionResult>();
+        createdResult.ActionName.ShouldBe(nameof(TicketsController.GetById));
+        createdResult.RouteValues!["id"].ShouldBe(1);
+        createdResult.Value.ShouldBe(comment);
+    }
+
+    [Fact]
+    public void AddComment_Given_UnknownTicket_Then_ReturnsNotFound()
+    {
+        var request = new AddCommentRequest { AuthorRole = CommentAuthorRole.Client, Message = "Any update?" };
+        _ticketServiceMock.Setup(s => s.AddComment(999, request)).Returns((TicketCommentResponse?)null);
+
+        var result = _sut.AddComment(999, request);
+
+        result.Result.ShouldBeOfType<NotFoundResult>();
+    }
 }

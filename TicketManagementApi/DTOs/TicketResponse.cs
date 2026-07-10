@@ -17,5 +17,7 @@ namespace TicketManagementApi.DTOs
         public DateTime CreatedAt { get; set; }
 
         public DateTime? UpdatedAt { get; set; }
+
+        public List<TicketCommentResponse> Comments { get; set; } = new();
     }
 }

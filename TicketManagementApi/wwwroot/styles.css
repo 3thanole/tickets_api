@@ -102,3 +102,56 @@ button.danger:hover {
   border-radius: 4px;
   margin: 1rem 0;
 }
+
+.countdown {
+  font-weight: 600;
+  color: #c62828;
+  margin: 0.5rem 0;
+}
+
+.comments {
+  margin-top: 0.75rem;
+  border-top: 1px solid #eee;
+  padding-top: 0.5rem;
+}
+
+.comments h4 {
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.comment-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.comment-list li {
+  background: #f5f6fa;
+  border-radius: 4px;
+  padding: 0.5rem;
+}
+
+.comment-list li p {
+  margin: 0.25rem 0 0;
+}
+
+.comment-list small {
+  color: #777;
+  margin-left: 0.5rem;
+}
+
+.comment-form {
+  flex-direction: row;
+  margin: 0;
+}
+
+.comment-form textarea {
+  flex: 1;
+  min-height: 2.4rem;
+  resize: vertical;
+}

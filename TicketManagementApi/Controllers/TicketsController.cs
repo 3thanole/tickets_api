@@ -48,4 +48,11 @@ public class TicketsController : ControllerBase
 
     [HttpDelete("{id:int}")]
     public IActionResult Delete(int id) => _ticketService.Delete(id) ? NoContent() : NotFound();
+
+    [HttpPost("{id:int}/comments")]
+    public ActionResult<TicketCommentResponse> AddComment(int id, AddCommentRequest request)
+    {
+        var comment = _ticketService.AddComment(id, request);
+        return comment is null ? NotFound() : CreatedAtAction(nameof(GetById), new { id }, comment);
+    }
 }

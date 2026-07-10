@@ -31,7 +31,9 @@ function renderTickets(tickets) {
         <span><strong>Priorité :</strong> ${ticket.priority}</span>
       </div>
       <p><small>Créé le ${new Date(ticket.createdAt).toLocaleString()}</small></p>
+      ${buildCommentsHtml(ticket)}
     `;
+    wireCommentForm(card, ticket.id, "Client", loadTickets, showError);
     ticketList.appendChild(card);
   }
 }

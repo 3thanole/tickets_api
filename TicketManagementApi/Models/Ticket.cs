@@ -11,4 +11,5 @@ public class Ticket
     public TicketPriority Priority { get; set; } = TicketPriority.Standard;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
+    public List<TicketComment> Comments { get; set; } = new();
 }

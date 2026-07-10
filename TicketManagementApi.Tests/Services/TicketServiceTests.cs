@@ -124,4 +124,79 @@ public class TicketServiceTests
     {
         _sut.Delete(999).ShouldBeFalse();
     }
+
+    [Fact]
+    public void AddComment_Given_ExistingTicket_Then_AddsCommentAndReturnsIt()
+    {
+        var created = _sut.Create(new CreateTicketRequest { Title = "Cannot log in" });
+        var request = new AddCommentRequest { AuthorRole = CommentAuthorRole.Client, Message = "Any update?" };
+
+        var comment = _sut.AddComment(created.Id, request);
+
+        comment.ShouldNotBeNull();
+        comment.AuthorRole.ShouldBe(CommentAuthorRole.Client);
+        comment.Message.ShouldBe("Any update?");
+
+        _sut.GetById(created.Id)!.Comments.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void AddComment_Given_UnknownTicket_Then_ReturnsNull()
+    {
+        var request = new AddCommentRequest { AuthorRole = CommentAuthorRole.ITAgent, Message = "Looking into it" };
+
+        _sut.AddComment(999, request).ShouldBeNull();
+    }
+
+    [Fact]
+    public void CleanupResolvedTickets_Given_ResolvedTicketOlderThan5Minutes_Then_DeletesIt()
+    {
+        var timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var sut = new TicketService(timeProvider);
+        var created = sut.Create(new CreateTicketRequest { Title = "Cannot log in" });
+        sut.UpdateStatus(created.Id, new UpdateTicketStatusRequest { Status = TicketStatus.Resolved });
+
+        timeProvider.Advance(TimeSpan.FromMinutes(6));
+        sut.CleanupResolvedTickets();
+
+        sut.GetById(created.Id).ShouldBeNull();
+    }
+
+    [Fact]
+    public void CleanupResolvedTickets_Given_ResolvedTicketWithinLast5Minutes_Then_KeepsIt()
+    {
+        var timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var sut = new TicketService(timeProvider);
+        var created = sut.Create(new CreateTicketRequest { Title = "Cannot log in" });
+        sut.UpdateStatus(created.Id, new UpdateTicketStatusRequest { Status = TicketStatus.Resolved });
+
+        timeProvider.Advance(TimeSpan.FromMinutes(2));
+        sut.CleanupResolvedTickets();
+
+        sut.GetById(created.Id).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void CleanupResolvedTickets_Given_NonResolvedTicketRegardlessOfAge_Then_KeepsIt()
+    {
+        var timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var sut = new TicketService(timeProvider);
+        var created = sut.Create(new CreateTicketRequest { Title = "Cannot log in" });
+
+        timeProvider.Advance(TimeSpan.FromMinutes(10));
+        sut.CleanupResolvedTickets();
+
+        sut.GetById(created.Id).ShouldNotBeNull();
+    }
+
+    private sealed class FakeTimeProvider : TimeProvider
+    {
+        private DateTimeOffset _utcNow;
+
+        public FakeTimeProvider(DateTimeOffset utcNow) => _utcNow = utcNow;
+
+        public override DateTimeOffset GetUtcNow() => _utcNow;
+
+        public void Advance(TimeSpan by) => _utcNow += by;
+    }
 }

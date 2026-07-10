@@ -10,5 +10,7 @@ namespace TicketManagementApi.Services
         TicketResponse? Update(int id, UpdateTicketRequest request);
         TicketResponse? UpdateStatus(int id, UpdateTicketStatusRequest request);
         bool Delete(int id);
+        TicketCommentResponse? AddComment(int ticketId, AddCommentRequest request);
+        void CleanupResolvedTickets();
     }
 }
