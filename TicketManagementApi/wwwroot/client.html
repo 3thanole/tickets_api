@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Espace Client — Ticket Management</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <nav><a href="/">← Accueil</a></nav>
+  <h1>Espace Client</h1>
+
+  <h2>Nouveau ticket</h2>
+  <form id="ticket-form">
+    <div>
+      <label for="title">Titre</label>
+      <input type="text" id="title" name="title" required maxlength="100" />
+    </div>
+    <div>
+      <label for="description">Description</label>
+      <textarea id="description" name="description" maxlength="1000"></textarea>
+    </div>
+    <div>
+      <label for="priority">Priorité</label>
+      <select id="priority" name="priority">
+        <option value="Standard">Standard</option>
+        <option value="High">High</option>
+        <option value="Urgent">Urgent</option>
+      </select>
+    </div>
+    <button type="submit">Créer le ticket</button>
+  </form>
+
+  <div id="error-box" class="error-box" hidden></div>
+
+  <h2>
+    Tickets existants
+    <button id="refresh-button" type="button">Refresh</button>
+  </h2>
+  <div id="ticket-list"></div>
+
+  <script src="/api.js"></script>
+  <script src="/client.js"></script>
+</body>
+</html>

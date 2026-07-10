@@ -1,0 +1,104 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 720px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  color: #1a1a1a;
+}
+
+h1 {
+  margin-bottom: 0.25rem;
+}
+
+nav a {
+  margin-right: 1rem;
+}
+
+.button {
+  display: inline-block;
+  padding: 0.6rem 1.2rem;
+  margin-top: 1rem;
+  margin-right: 0.5rem;
+  background: #2454ff;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+}
+
+.button:hover {
+  background: #1a3fcc;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+label {
+  font-weight: 600;
+}
+
+input,
+textarea,
+select {
+  padding: 0.5rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+button {
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 4px;
+  background: #2454ff;
+  color: white;
+  cursor: pointer;
+  width: fit-content;
+}
+
+button:hover {
+  background: #1a3fcc;
+}
+
+button.danger {
+  background: #c62828;
+}
+
+button.danger:hover {
+  background: #9a1f1f;
+}
+
+.ticket-card {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.ticket-card h3 {
+  margin: 0 0 0.25rem;
+}
+
+.ticket-card .meta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.error-box {
+  border: 1px solid #c62828;
+  background: #fdecea;
+  color: #c62828;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin: 1rem 0;
+}
