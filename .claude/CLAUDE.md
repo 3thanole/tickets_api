@@ -52,18 +52,25 @@ En plus des champs existants (Title, Description, Status, Priority, CreatedAt, U
 - Compte à rebours visible dans l'espace IT (`it.js`), purement informatif côté client (peut être décalé de ~30s par rapport à la suppression réelle côté serveur).
 
 ### Architecture applicative
-- Cible : `Controller → Service → Repository` (le pattern Repository doit être introduit en plus de la couche Service actuelle, pour découpler `TicketService` de l'accès aux données une fois EF Core en place).
-- Niveau de complexité voulu : **intermédiaire** — pas de Clean Architecture stricte ni de CQRS/MediatR, l'accent est mis sur Repository + EF Core + tests plutôt que sur une architecture multi-projets.
+- **Mise à jour (consigne manager, prime sur la cible précédente)** : passage à une **architecture hexagonale** (Ports & Adapters). Le domaine métier (règles, cas d'usage) ne doit dépendre d'aucun détail d'infrastructure (HTTP/ASP.NET Core, stockage) ; il expose des **ports** (interfaces définies par le domaine), et l'infrastructure s'y branche via des **adapters** (ex: `TicketsController` = adapter entrant, un futur `InMemoryTicketRepository`/`EfCoreTicketRepository` = adapter sortant). Attention particulière à la portée/partage des ressources (durées de vie DI, `lock`, état partagé) lors de ce découpage.
+- Ancienne cible `Controller → Service → Repository` : toujours valable comme sous-ensemble de l'archi hexagonale (le Repository devient un adapter sortant derrière un port), mais le cadre global est maintenant hexagonal.
+- La restriction précédente "pas de Clean Architecture" (voir section Ne pas faire, désormais levée pour ce point précis) ne s'applique plus à cette initiative spécifique.
+
+### Validation des entrées API
+- **FluentValidation** à introduire, en plus des `[Required]`/`[MaxLength]` déjà en place sur les DTOs.
+- Règles **techniques** (format, type, valeurs enum) et règles **métier** (ex: un ticket doit avoir une description non vide, le statut ne peut pas être fourni/modifié par le client à la création) — volontairement limitées en nombre, juste pour illustrer les deux catégories, pas une couverture exhaustive.
 
 ### Tests
 - Stack : **xUnit** (exécution) + **Moq** (mock des dépendances) + **Shouldly** (assertions lisibles).
-- Objectif : tests unitaires sur les Services/Repositories, et si possible des tests d'intégration sur les Controllers (via `WebApplicationFactory`).
+- Convention : AAA (Arrange/Act/Assert) + nommage `MethodeTestee_Contexte_ResultatAttendu`.
+- Objectif : tests unitaires sur les Services/Repositories/Validators, et si possible des tests d'intégration sur les Controllers (via `WebApplicationFactory`).
 
 ## État actuel du code (pour référence, à tenir à jour)
 - `Models/`, `Enums/`, `DTOs/` : en place et corrects pour le CRUD de base + le fil de commentaires (`TicketComment`, `CommentAuthorRole`, `AddCommentRequest`, `TicketCommentResponse`).
 - `Services/ITicketService.cs` + `Services/TicketService.cs` : implémentation CRUD + commentaires + cleanup, **en mémoire**, thread-safe (`lock`), horloge injectée via `TimeProvider` (à migrer vers EF Core + Repository plus tard).
 - `Controllers/TicketsController.cs` : en place, 7 endpoints REST (les 6 CRUD + `POST /tickets/{id}/comments`), branché sur `ITicketService` via DI (`AddSingleton`, nécessaire tant que le stockage est en mémoire).
 - `BackgroundServices/TicketCleanupService.cs` : `BackgroundService` enregistré via `AddHostedService`, supprime les tickets résolus depuis >2 min.
+- `ExceptionHandling/GlobalExceptionHandler.cs` : `IExceptionHandler` (natif .NET 8, `AddExceptionHandler` + `AddProblemDetails`, branché en tout premier dans le pipeline via `app.UseExceptionHandler()`). Capture uniquement les exceptions **non prévues** (bugs) échappant à toute la pipeline ; logue le détail technique (message + stack trace) en `Error` via `ILogger`, renvoie un `ProblemDetails` générique (500, jamais le message brut de l'exception) au client. Ne remplace pas le pattern existant `null`/`NotFound()` du controller pour les cas métier attendus (ticket/commentaire introuvable) — volontairement inchangé.
 - `TicketManagementApi.Tests/` : projet xUnit + Moq + Shouldly en place, tests unitaires sur `TicketService` et `TicketsController` (29 tests, tous verts), incluant le cleanup testé via un `FakeTimeProvider` (pas de vrai délai d'attente).
 - `wwwroot/` : frontend statique en place (`index.html`, `client.html`, `it.html`, `api.js`, `client.js`, `it.js`, `styles.css`), consomme les 7 endpoints REST (CRUD + commentaires), affiche le fil de discussion sur les deux pages et le compte à rebours de suppression côté IT.
 - Pas encore d'authentification, pas d'EF Core — prochaines étapes logiques (EF Core en pause, voir "Ne pas faire").
