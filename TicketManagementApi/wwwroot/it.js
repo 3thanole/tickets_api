@@ -2,7 +2,7 @@ const errorBox = document.getElementById("error-box");
 const ticketList = document.getElementById("ticket-list");
 
 const STATUSES = ["Open", "Waiting", "Resolved"];
-const RESOLVED_DELETION_DELAY_MS = 5 * 60 * 1000;
+const RESOLVED_DELETION_DELAY_MS = 2 * 60 * 1000;
 
 // setInterval handles for the resolved-ticket countdowns currently on screen.
 // Cleared and rebuilt on every renderTickets() call, otherwise each manual

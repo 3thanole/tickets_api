@@ -4,21 +4,15 @@ using TicketManagementApi.Models;
 
 namespace TicketManagementApi.Services
 {
-    public class TicketService : ITicketService
+    public class TicketService(TimeProvider timeProvider) : ITicketService
     {
         private readonly object _lock = new();
-        private readonly List<Ticket> _tickets = new();
-        private readonly TimeProvider _timeProvider;
+        private readonly List<Ticket> _tickets = [];
         private int _nextId = 1;
         private int _nextCommentId = 1;
 
         public TicketService() : this(TimeProvider.System)
         {
-        }
-
-        public TicketService(TimeProvider timeProvider)
-        {
-            _timeProvider = timeProvider;
         }
 
         public List<TicketResponse> GetAll()
@@ -57,10 +51,10 @@ namespace TicketManagementApi.Services
                     Description = request.Description,
                     Priority = request.Priority,
                     Status = TicketStatus.Open,
-                    CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
+                    CreatedAt = timeProvider.GetUtcNow().UtcDateTime,
                     UpdatedAt = null
                 };
-
+    
                 _tickets.Add(ticket);
                 _nextId++;
 
@@ -82,7 +76,7 @@ namespace TicketManagementApi.Services
                 ticket.Title = request.Title;
                 ticket.Description = request.Description;
                 ticket.Priority = request.Priority;
-                ticket.UpdatedAt = _timeProvider.GetUtcNow().UtcDateTime;
+                ticket.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
 
                 return MapToResponse(ticket);
             }
@@ -100,7 +94,7 @@ namespace TicketManagementApi.Services
                 }
 
                 ticket.Status = request.Status;
-                ticket.UpdatedAt = _timeProvider.GetUtcNow().UtcDateTime;
+                ticket.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
 
                 return MapToResponse(ticket);
             }
@@ -140,7 +134,7 @@ namespace TicketManagementApi.Services
                     TicketId = ticketId,
                     AuthorRole = request.AuthorRole,
                     Message = request.Message,
-                    CreatedAt = _timeProvider.GetUtcNow().UtcDateTime
+                    CreatedAt = timeProvider.GetUtcNow().UtcDateTime
                 };
 
                 ticket.Comments.Add(comment);
@@ -154,12 +148,11 @@ namespace TicketManagementApi.Services
         {
             lock (_lock)
             {
-                var now = _timeProvider.GetUtcNow().UtcDateTime;
+                var now = timeProvider.GetUtcNow().UtcDateTime;
 
                 _tickets.RemoveAll(ticket =>
-                    ticket.Status == TicketStatus.Resolved &&
-                    ticket.UpdatedAt.HasValue &&
-                    (now - ticket.UpdatedAt.Value) >= TimeSpan.FromMinutes(5));
+                    ticket is { Status: TicketStatus.Resolved, UpdatedAt: not null } &&
+                    (now - ticket.UpdatedAt.Value) >= TimeSpan.FromMinutes(2));
             }
         }
 

@@ -16,7 +16,7 @@ Le but pédagogique est de pratiquer une API .NET "comme en entreprise" : couche
 - **.NET 8** / ASP.NET Core Web API (`net8.0`, Nullable + ImplicitUsings activés)
 - **Swashbuckle.AspNetCore** (Swagger/OpenAPI) pour la documentation et le test manuel des endpoints
 - **Frontend statique** : HTML/CSS/JS "vanilla" (pas de framework, pas de build) servi directement par l'API via `wwwroot/` (`UseDefaultFiles()` + `UseStaticFiles()` dans `Program.cs`). Deux pages (`client.html`, `it.html`) reflétant les deux points de vue métier, plus une page d'accueil (`index.html`). Pas de rôle/permission réelle imposée entre les deux pages — juste deux UI différentes sur la même API. Helpers fetch partagés dans `api.js`.
-- **`BackgroundService`** (`Microsoft.Extensions.Hosting`) pour la suppression automatique des tickets résolus depuis plus de 5 minutes (`TicketCleanupService`, balayage périodique toutes les 30s via `PeriodicTimer`).
+- **`BackgroundService`** (`Microsoft.Extensions.Hosting`) pour la suppression automatique des tickets résolus depuis plus de 2 minutes (`TicketCleanupService`, balayage périodique toutes les 30s via `PeriodicTimer`).
 - **`TimeProvider`** (natif .NET 8) injecté dans `TicketService` au lieu de `DateTime.UtcNow` en dur, pour permettre de tester le cleanup sans vrai délai d'attente.
 - Aucune base de données, aucune auth pour l'instant (stockage en mémoire via `List<Ticket>`, protégé par un `lock` depuis l'introduction du balayage en arrière-plan qui mute la liste en concurrence des requêtes HTTP)
 
@@ -47,7 +47,7 @@ En plus des champs existants (Title, Description, Status, Priority, CreatedAt, U
 - Pas de vraie auth : l'auteur est juste un tag de rôle envoyé dans la requête (`client.js` poste toujours `Client`, `it.js` toujours `ITAgent`), cohérent avec le reste du projet (deux UI non authentifiées sur la même API).
 
 ### Suppression automatique des tickets résolus (implémenté)
-- Un ticket passé au statut `Resolved` (`UpdatedAt` mis à jour) est supprimé automatiquement 5 minutes plus tard par `TicketCleanupService`, indépendamment de toute visite de page.
+- Un ticket passé au statut `Resolved` (`UpdatedAt` mis à jour) est supprimé automatiquement 2 minutes plus tard par `TicketCleanupService`, indépendamment de toute visite de page.
 - S'il repasse à un autre statut avant l'échéance, il n'est jamais supprimé (le balayage re-vérifie `Status == Resolved` à chaque passage).
 - Compte à rebours visible dans l'espace IT (`it.js`), purement informatif côté client (peut être décalé de ~30s par rapport à la suppression réelle côté serveur).
 
@@ -63,7 +63,7 @@ En plus des champs existants (Title, Description, Status, Priority, CreatedAt, U
 - `Models/`, `Enums/`, `DTOs/` : en place et corrects pour le CRUD de base + le fil de commentaires (`TicketComment`, `CommentAuthorRole`, `AddCommentRequest`, `TicketCommentResponse`).
 - `Services/ITicketService.cs` + `Services/TicketService.cs` : implémentation CRUD + commentaires + cleanup, **en mémoire**, thread-safe (`lock`), horloge injectée via `TimeProvider` (à migrer vers EF Core + Repository plus tard).
 - `Controllers/TicketsController.cs` : en place, 7 endpoints REST (les 6 CRUD + `POST /tickets/{id}/comments`), branché sur `ITicketService` via DI (`AddSingleton`, nécessaire tant que le stockage est en mémoire).
-- `BackgroundServices/TicketCleanupService.cs` : `BackgroundService` enregistré via `AddHostedService`, supprime les tickets résolus depuis >5 min.
+- `BackgroundServices/TicketCleanupService.cs` : `BackgroundService` enregistré via `AddHostedService`, supprime les tickets résolus depuis >2 min.
 - `TicketManagementApi.Tests/` : projet xUnit + Moq + Shouldly en place, tests unitaires sur `TicketService` et `TicketsController` (29 tests, tous verts), incluant le cleanup testé via un `FakeTimeProvider` (pas de vrai délai d'attente).
 - `wwwroot/` : frontend statique en place (`index.html`, `client.html`, `it.html`, `api.js`, `client.js`, `it.js`, `styles.css`), consomme les 7 endpoints REST (CRUD + commentaires), affiche le fil de discussion sur les deux pages et le compte à rebours de suppression côté IT.
 - Pas encore d'authentification, pas d'EF Core — prochaines étapes logiques (EF Core en pause, voir "Ne pas faire").

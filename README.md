@@ -154,9 +154,6 @@ TicketManagementApi
 │   ├── TicketStatus
 │   └── TicketPriority
 │
-├── Data
-│   └── ApplicationDbContext
-│
 └── Program.cs
 ```
 

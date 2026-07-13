@@ -149,7 +149,7 @@ public class TicketServiceTests
     }
 
     [Fact]
-    public void CleanupResolvedTickets_Given_ResolvedTicketOlderThan5Minutes_Then_DeletesIt()
+    public void CleanupResolvedTickets_Given_ResolvedTicketOlderThan2Minutes_Then_DeletesIt()
     {
         var timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
         var sut = new TicketService(timeProvider);
@@ -163,14 +163,14 @@ public class TicketServiceTests
     }
 
     [Fact]
-    public void CleanupResolvedTickets_Given_ResolvedTicketWithinLast5Minutes_Then_KeepsIt()
+    public void CleanupResolvedTickets_Given_ResolvedTicketWithinLast2Minutes_Then_KeepsIt()
     {
         var timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
         var sut = new TicketService(timeProvider);
         var created = sut.Create(new CreateTicketRequest { Title = "Cannot log in" });
         sut.UpdateStatus(created.Id, new UpdateTicketStatusRequest { Status = TicketStatus.Resolved });
 
-        timeProvider.Advance(TimeSpan.FromMinutes(2));
+        timeProvider.Advance(TimeSpan.FromMinutes(1));
         sut.CleanupResolvedTickets();
 
         sut.GetById(created.Id).ShouldNotBeNull();

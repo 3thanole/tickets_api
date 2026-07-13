@@ -18,6 +18,6 @@ namespace TicketManagementApi.DTOs
 
         public DateTime? UpdatedAt { get; set; }
 
-        public List<TicketCommentResponse> Comments { get; set; } = new();
+        public List<TicketCommentResponse> Comments { get; set; } = [];
     }
 }
