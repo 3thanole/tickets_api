@@ -10,6 +10,9 @@ Construire une API de gestion de tickets de support avec deux points de vue mét
 
 Le but pédagogique est de pratiquer une API .NET "comme en entreprise" : couches propres, auth par rôles, persistance réelle, tests.
 
+## Style de collaboration souhaité
+L'utilisateur est **débutant en C#/.NET**. Quand tu écris ou modifies du code : explique brièvement les parties techniques nouvelles ou non triviales (syntaxe, concept, pourquoi ce choix) pour qu'il comprenne ce qui est écrit — mais reste **concis** dans ces explications, pas de longs pavés systématiques. Priorité : qu'il comprenne le code produit, sans que chaque message devienne un cours magistral.
+
 ## Technologies
 
 ### En place actuellement
@@ -51,14 +54,19 @@ En plus des champs existants (Title, Description, Status, Priority, CreatedAt, U
 - S'il repasse à un autre statut avant l'échéance, il n'est jamais supprimé (le balayage re-vérifie `Status == Resolved` à chaque passage).
 - Compte à rebours visible dans l'espace IT (`it.js`), purement informatif côté client (peut être décalé de ~30s par rapport à la suppression réelle côté serveur).
 
-### Architecture applicative
-- **Mise à jour (consigne manager, prime sur la cible précédente)** : passage à une **architecture hexagonale** (Ports & Adapters). Le domaine métier (règles, cas d'usage) ne doit dépendre d'aucun détail d'infrastructure (HTTP/ASP.NET Core, stockage) ; il expose des **ports** (interfaces définies par le domaine), et l'infrastructure s'y branche via des **adapters** (ex: `TicketsController` = adapter entrant, un futur `InMemoryTicketRepository`/`EfCoreTicketRepository` = adapter sortant). Attention particulière à la portée/partage des ressources (durées de vie DI, `lock`, état partagé) lors de ce découpage.
-- Ancienne cible `Controller → Service → Repository` : toujours valable comme sous-ensemble de l'archi hexagonale (le Repository devient un adapter sortant derrière un port), mais le cadre global est maintenant hexagonal.
-- La restriction précédente "pas de Clean Architecture" (voir section Ne pas faire, désormais levée pour ce point précis) ne s'applique plus à cette initiative spécifique.
+### Architecture applicative (implémenté)
+- **Architecture hexagonale** (Ports & Adapters), consigne manager. Le cœur métier (`TicketService`) ne dépend que du port `Repositories/ITicketRepository.cs` (interface définie pour le cœur), jamais d'un détail de stockage concret.
+- `Repositories/InMemoryTicketRepository.cs` : adapter sortant, contient tout ce qui était avant dans `TicketService` (`_tickets`, `lock`, compteurs d'id `_nextId`/`_nextCommentId`) — ce sont des concerns de stockage, pas des règles métier. Retourne des **copies** (clone) des tickets à chaque lecture : sans ça, le cœur lirait des champs après que le verrou du repository a déjà été relâché, une race condition qui n'existait pas avant (tout — recherche + lecture — se faisait auparavant dans un seul et même `lock`).
+- `TicketsController.cs` = adapter entrant, **inchangé** : il ne dépendait déjà que de l'interface `ITicketService`, jamais de la classe concrète.
+- DI : `ITicketRepository` et `ITicketService` tous les deux `AddSingleton` (Singleton→Singleton, pas de souci de durée de vie — le repository doit survivre entre requêtes comme avant, le service n'a plus d'état propre).
+- Pas de CQRS/MediatR ni de couches supplémentaires — l'archi hexagonale ne justifie pas d'empiler d'autres patterns non demandés.
 
-### Validation des entrées API
-- **FluentValidation** à introduire, en plus des `[Required]`/`[MaxLength]` déjà en place sur les DTOs.
-- Règles **techniques** (format, type, valeurs enum) et règles **métier** (ex: un ticket doit avoir une description non vide, le statut ne peut pas être fourni/modifié par le client à la création) — volontairement limitées en nombre, juste pour illustrer les deux catégories, pas une couverture exhaustive.
+### Validation des entrées API (implémenté)
+- **FluentValidation** (+ `FluentValidation.DependencyInjectionExtensions`), en plus des `[Required]`/`[MaxLength]` déjà en place sur les DTOs.
+- `Validators/CreateTicketRequestValidator.cs` : règle technique (`Priority` doit être une valeur d'enum définie — le `JsonStringEnumConverter` actuel autorise par défaut un entier hors-limites) + règle métier (`Description` obligatoire — **changement de comportement volontaire et assumé**, ce champ reste `string?` optionnel au niveau du DTO/modèle, seule la validation le rend obligatoire).
+- `Validators/AddCommentRequestValidator.cs` : règle technique (`AuthorRole` enum défini) + règle métier (`Message` non vide — en pratique déjà couvert par le `[Required]` existant, gardé à titre d'exemple illustratif).
+- `Filters/ValidationFilter.cs` : un seul filtre global (`IAsyncActionFilter`, enregistré via `AddControllers(options => options.Filters.Add<ValidationFilter>())`) qui déclenche automatiquement le validator correspondant pour n'importe quel DTO d'action — `[ApiController]` ne branche pas FluentValidation tout seul, contrairement aux attributs `[Required]`/`[MaxLength]`. Réponse 400 au même format (`ValidationProblemDetails`) que les validations automatiques existantes.
+- Volontairement limité à 2 validators — pas une couverture exhaustive, juste pour illustrer technique + métier.
 
 ### Tests
 - Stack : **xUnit** (exécution) + **Moq** (mock des dépendances) + **Shouldly** (assertions lisibles).
@@ -67,16 +75,18 @@ En plus des champs existants (Title, Description, Status, Priority, CreatedAt, U
 
 ## État actuel du code (pour référence, à tenir à jour)
 - `Models/`, `Enums/`, `DTOs/` : en place et corrects pour le CRUD de base + le fil de commentaires (`TicketComment`, `CommentAuthorRole`, `AddCommentRequest`, `TicketCommentResponse`).
-- `Services/ITicketService.cs` + `Services/TicketService.cs` : implémentation CRUD + commentaires + cleanup, **en mémoire**, thread-safe (`lock`), horloge injectée via `TimeProvider` (à migrer vers EF Core + Repository plus tard).
-- `Controllers/TicketsController.cs` : en place, 7 endpoints REST (les 6 CRUD + `POST /tickets/{id}/comments`), branché sur `ITicketService` via DI (`AddSingleton`, nécessaire tant que le stockage est en mémoire).
+- `Repositories/ITicketRepository.cs` + `Repositories/InMemoryTicketRepository.cs` : port + adapter sortant (archi hexagonale), stockage en mémoire, thread-safe (`lock`), retourne des copies des tickets.
+- `Services/ITicketService.cs` + `Services/TicketService.cs` : cœur métier, dépend uniquement de `ITicketRepository` (+ `TimeProvider`), ne garde plus aucun état mutable propre.
+- `Controllers/TicketsController.cs` : en place, 7 endpoints REST (les 6 CRUD + `POST /tickets/{id}/comments`), branché sur `ITicketService` via DI (`AddSingleton`).
 - `BackgroundServices/TicketCleanupService.cs` : `BackgroundService` enregistré via `AddHostedService`, supprime les tickets résolus depuis >2 min.
 - `ExceptionHandling/GlobalExceptionHandler.cs` : `IExceptionHandler` (natif .NET 8, `AddExceptionHandler` + `AddProblemDetails`, branché en tout premier dans le pipeline via `app.UseExceptionHandler()`). Capture uniquement les exceptions **non prévues** (bugs) échappant à toute la pipeline ; logue le détail technique (message + stack trace) en `Error` via `ILogger`, renvoie un `ProblemDetails` générique (500, jamais le message brut de l'exception) au client. Ne remplace pas le pattern existant `null`/`NotFound()` du controller pour les cas métier attendus (ticket/commentaire introuvable) — volontairement inchangé.
-- `TicketManagementApi.Tests/` : projet xUnit + Moq + Shouldly en place, tests unitaires sur `TicketService` et `TicketsController` (29 tests, tous verts), incluant le cleanup testé via un `FakeTimeProvider` (pas de vrai délai d'attente).
-- `wwwroot/` : frontend statique en place (`index.html`, `client.html`, `it.html`, `api.js`, `client.js`, `it.js`, `styles.css`), consomme les 7 endpoints REST (CRUD + commentaires), affiche le fil de discussion sur les deux pages et le compte à rebours de suppression côté IT.
+- `Validators/CreateTicketRequestValidator.cs` + `Validators/AddCommentRequestValidator.cs` + `Filters/ValidationFilter.cs` : FluentValidation branché globalement sur les actions du controller (voir section Validation ci-dessus).
+- `TicketManagementApi.Tests/` : projet xUnit + Moq + Shouldly + FluentValidation en place, 39 tests tous verts (`TicketService`, `TicketsController`, `InMemoryTicketRepository`, les 2 validators), cleanup testé via un `FakeTimeProvider` (pas de vrai délai d'attente).
+- `wwwroot/` : frontend statique en place (`index.html`, `client.html`, `it.html`, `api.js`, `client.js`, `it.js`, `styles.css`), consomme les 7 endpoints REST (CRUD + commentaires), affiche le fil de discussion sur les deux pages et le compte à rebours de suppression côté IT. Un `POST /tickets` sans `description` renvoie désormais 400 (changement de contrat assumé).
 - Pas encore d'authentification, pas d'EF Core — prochaines étapes logiques (EF Core en pause, voir "Ne pas faire").
 
 ## Ne pas faire
 - Ne pas introduire de dépendance, nommage, ou logique métier issue de projets Betclic réels.
 - Ne pas ajouter de champ "catégorie de ticket" sans le demander explicitly (exclu du scope actuel).
-- Ne pas sur-architecturer (pas de CQRS/MediatR/Clean Architecture) sauf demande explicite future.
+- ~~Ne pas sur-architecturer (pas de CQRS/MediatR/Clean Architecture)~~ — **levé** : consigne manager explicite d'introduire une architecture hexagonale (voir section Architecture applicative). Rester néanmoins raisonnable : pas de CQRS/MediatR à moins d'une demande explicite ultérieure, l'archi hexagonale ne justifie pas d'empiler d'autres patterns non demandés.
 - **Ne pas implémenter la persistance (EF Core/SQLite, migrations, `ApplicationDbContext`)** : le manager de l'utilisateur veut voir cette partie spécifiquement avec lui. Rester sur le stockage en mémoire (`List<Ticket>`) jusqu'à nouvel ordre explicite de l'utilisateur, même si le reste du contexte décrit EF Core/SQLite comme cible future.

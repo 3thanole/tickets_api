@@ -1,6 +1,7 @@
 using Shouldly;
 using TicketManagementApi.DTOs;
 using TicketManagementApi.Enums;
+using TicketManagementApi.Repositories;
 using TicketManagementApi.Services;
 using Xunit;
 
@@ -8,7 +9,7 @@ namespace TicketManagementApi.Tests.Services;
 
 public class TicketServiceTests
 {
-    private readonly TicketService _sut = new();
+    private readonly TicketService _sut = new(new InMemoryTicketRepository());
 
     [Fact]
     public void Create_Given_ValidRequest_Then_ReturnsTicketWithGeneratedIdAndOpenStatus()
@@ -152,7 +153,7 @@ public class TicketServiceTests
     public void CleanupResolvedTickets_Given_ResolvedTicketOlderThan2Minutes_Then_DeletesIt()
     {
         var timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
-        var sut = new TicketService(timeProvider);
+        var sut = new TicketService(new InMemoryTicketRepository(), timeProvider);
         var created = sut.Create(new CreateTicketRequest { Title = "Cannot log in" });
         sut.UpdateStatus(created.Id, new UpdateTicketStatusRequest { Status = TicketStatus.Resolved });
 
@@ -166,7 +167,7 @@ public class TicketServiceTests
     public void CleanupResolvedTickets_Given_ResolvedTicketWithinLast2Minutes_Then_KeepsIt()
     {
         var timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
-        var sut = new TicketService(timeProvider);
+        var sut = new TicketService(new InMemoryTicketRepository(), timeProvider);
         var created = sut.Create(new CreateTicketRequest { Title = "Cannot log in" });
         sut.UpdateStatus(created.Id, new UpdateTicketStatusRequest { Status = TicketStatus.Resolved });
 
@@ -180,7 +181,7 @@ public class TicketServiceTests
     public void CleanupResolvedTickets_Given_NonResolvedTicketRegardlessOfAge_Then_KeepsIt()
     {
         var timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
-        var sut = new TicketService(timeProvider);
+        var sut = new TicketService(new InMemoryTicketRepository(), timeProvider);
         var created = sut.Create(new CreateTicketRequest { Title = "Cannot log in" });
 
         timeProvider.Advance(TimeSpan.FromMinutes(10));
